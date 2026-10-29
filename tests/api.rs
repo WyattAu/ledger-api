@@ -1,7 +1,12 @@
 //! API integration tests: the routes work over released artifacts, with
 //! no database required for the pure-computation endpoints.
 
-#![allow(clippy::expect_used, clippy::panic, clippy::unwrap_used)]
+#![allow(
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unwrap_used,
+    clippy::indexing_slicing
+)]
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
@@ -10,10 +15,6 @@ use tower::ServiceExt;
 
 fn router(state: AppState) -> axum::Router {
     ledger_api::routes::router(state)
-}
-
-mod routes {
-    pub use ledger_api::routes;
 }
 
 fn make_state() -> SharedState {

@@ -9,8 +9,6 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 
-use crate::SharedState;
-
 /// The health check, so the embedder's load balancer has something to probe.
 pub async fn health() -> &'static str {
     "ok"
