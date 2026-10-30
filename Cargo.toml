@@ -13,6 +13,8 @@ categories = ["finance", "api-bindings"]
 double-entry = "=0.1.1"
 ledger-pg = "=0.2.2"
 report-kit = "=0.2.3"
+vat-return = "=0.1.10"
+vat-mtd = "=0.1.6"
 recon-kit = "=0.2.0"
 sales-tax = "=0.1.0"
 vat-rules = "=0.1.1"

@@ -4,14 +4,49 @@
 //! The routes are the delivery mechanism; the correctness lives in the
 //! crates.
 
-use axum::extract::State;
+use axum::extract::{Path, State};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 
+use crate::SharedState;
+
 /// The health check, so the embedder's load balancer has something to probe.
 pub async fn health() -> &'static str {
     "ok"
+}
+
+/// A single account's balance response.
+#[derive(Debug, Serialize)]
+pub struct BalanceResponse {
+    pub account: String,
+    pub currency: String,
+    pub balance_minor: i64,
+}
+
+/// GET /accounts/:id/balance/:currency
+async fn account_balance(
+    State(state): State<SharedState>,
+    Path((account, currency)): Path<(String, String)>,
+) -> Json<BalanceResponse> {
+    let (balance,): (i64,) = sqlx::query_as(
+        "SELECT COALESCE(SUM(CASE WHEN l.side = 'debit' THEN l.amount_units ELSE -l.amount_units END), 0)::BIGINT \
+         FROM ledger_lines l \
+         JOIN ledger_entries e ON e.tenant_id = l.tenant_id AND e.id = l.entry_id \
+         WHERE l.tenant_id = $1 AND l.account = $2 AND l.amount_currency = $3 AND e.state = 'posted'",
+    )
+    .bind(&state.tenant)
+    .bind(&account)
+    .bind(&currency)
+    .fetch_one(&state.pool)
+    .await
+    .unwrap_or((0,));
+
+    Json(BalanceResponse {
+        account,
+        currency,
+        balance_minor: balance,
+    })
 }
 
 /// A reconciliation request.
@@ -55,40 +90,10 @@ pub struct ReconcileResponse {
     pub ambiguous: Vec<AmbiguousResponse>,
 }
 
-/// A US sales tax computation request.
-#[derive(Debug, Deserialize)]
-pub struct SalesTaxRequest {
-    pub lines: Vec<SalesTaxLine>,
-    pub destination_state: String,
-    pub nexus_states: Vec<String>,
-    pub rates: Vec<SalesTaxRate>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SalesTaxLine {
-    pub net_minor: i64,
-    pub taxable: bool,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SalesTaxRate {
-    pub level: String,
-    pub name: String,
-    pub percent: String,
-}
-
-/// The routes for the ledger API.
-pub fn router(state: crate::AppState) -> Router {
-    Router::new()
-        .route("/health", get(health))
-        .route("/reconcile", post(reconcile))
-        .route("/sales-tax/compute", post(compute_sales_tax))
-        .with_state(state)
-}
-
-/// Reconcile statement lines against ledger entries.
+/// POST /reconcile — propose matches between statement lines and ledger
+/// entries.
 async fn reconcile(
-    State(_state): State<crate::SharedState>,
+    State(_state): State<SharedState>,
     Json(request): Json<ReconcileRequest>,
 ) -> Json<ReconcileResponse> {
     let lines: Vec<recon_kit::StatementLine> = request
@@ -114,8 +119,6 @@ async fn reconcile(
         })
         .collect();
 
-    // The passes chain: exact first, then window, then reference, with
-    // each pass's taken-sets feeding the next so no entry is matched twice.
     let empty = std::collections::HashSet::new();
     let exact = recon_kit::match_exact(&lines, &entries, &empty, &empty);
     let taken_lines: std::collections::HashSet<String> =
@@ -124,32 +127,6 @@ async fn reconcile(
         exact.iter().map(|m| m.entry_id.clone()).collect();
 
     let window = recon_kit::match_window(&lines, &entries, 3, &taken_lines, &taken_entries);
-    let taken_lines: std::collections::HashSet<String> = taken_lines
-        .union(
-            &window
-                .iter()
-                .filter_map(|p| match p {
-                    recon_kit::Proposal::Match(m) => Some(m.line_id.clone()),
-                    _ => None,
-                })
-                .collect(),
-        )
-        .cloned()
-        .collect();
-    let taken_entries: std::collections::HashSet<String> = taken_entries
-        .union(
-            &window
-                .iter()
-                .filter_map(|p| match p {
-                    recon_kit::Proposal::Match(m) => Some(m.entry_id.clone()),
-                    _ => None,
-                })
-                .collect(),
-        )
-        .cloned()
-        .collect();
-
-    let reference = recon_kit::match_reference(&lines, &entries, &taken_lines, &taken_entries);
 
     let mut response = ReconcileResponse {
         matches: Vec::new(),
@@ -161,31 +138,51 @@ async fn reconcile(
             entry_id: m.entry_id.clone(),
         });
     }
-    for proposals in [&window, &reference] {
-        for proposal in proposals {
-            match proposal {
-                recon_kit::Proposal::Match(m) => {
-                    response.matches.push(MatchResponse {
-                        line_id: m.line_id.clone(),
-                        entry_id: m.entry_id.clone(),
-                    });
-                }
-                recon_kit::Proposal::Ambiguous {
-                    line_id,
-                    candidates,
-                } => {
-                    response.ambiguous.push(AmbiguousResponse {
-                        line_id: line_id.clone(),
-                        candidates: candidates.clone(),
-                    });
-                }
+    for p in &window {
+        match p {
+            recon_kit::Proposal::Match(m) => {
+                response.matches.push(MatchResponse {
+                    line_id: m.line_id.clone(),
+                    entry_id: m.entry_id.clone(),
+                });
+            }
+            recon_kit::Proposal::Ambiguous {
+                line_id,
+                candidates,
+            } => {
+                response.ambiguous.push(AmbiguousResponse {
+                    line_id: line_id.clone(),
+                    candidates: candidates.clone(),
+                });
             }
         }
     }
     Json(response)
 }
 
-/// Compute US sales tax for a transaction.
+/// A US sales tax computation request.
+#[derive(Debug, Deserialize)]
+pub struct SalesTaxRequest {
+    pub lines: Vec<SalesTaxLine>,
+    pub destination_state: String,
+    pub nexus_states: Vec<String>,
+    pub rates: Vec<SalesTaxRate>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SalesTaxLine {
+    pub net_minor: i64,
+    pub taxable: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SalesTaxRate {
+    pub level: String,
+    pub name: String,
+    pub percent: String,
+}
+
+/// POST /sales-tax/compute — nexus-gated, jurisdiction-stacked US sales tax.
 async fn compute_sales_tax(Json(request): Json<SalesTaxRequest>) -> Json<serde_json::Value> {
     let lines: Vec<sales_tax::SaleLine> = request
         .lines
@@ -230,4 +227,17 @@ async fn compute_sales_tax(Json(request): Json<SalesTaxRequest>) -> Json<serde_j
         })),
         Err(e) => Json(serde_json::json!({ "error": format!("{e:?}") })),
     }
+}
+
+/// The routes for the ledger API.
+pub fn router(state: crate::AppState) -> Router {
+    Router::new()
+        .route("/health", get(health))
+        .route(
+            "/accounts/{account_id}/balance/{currency}",
+            get(account_balance),
+        )
+        .route("/reconcile", post(reconcile))
+        .route("/sales-tax/compute", post(compute_sales_tax))
+        .with_state(state)
 }
