@@ -10,11 +10,11 @@
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use ledger_api::{AppState, SharedState};
+use accounting_api::{AppState, SharedState};
 use tower::ServiceExt;
 
 fn router(state: AppState) -> axum::Router {
-    ledger_api::routes::router(state)
+    accounting_api::routes::router(state)
 }
 
 fn make_state() -> SharedState {

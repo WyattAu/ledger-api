@@ -1,6 +1,6 @@
 [package]
 name = "accounting-api"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.85"
 description = "HTTP API over the WyattAu accounting estate — ledger, reconciliation, reports, tax, all from the released crates"
@@ -16,7 +16,7 @@ report-kit = "=0.2.3"
 vat-return = "=0.1.10"
 vat-mtd = "=0.1.6"
 recon-kit = "=0.2.0"
-sales-tax = "=0.1.0"
+sales-tax = "=0.2.1"
 vat-rules = "=0.1.1"
 axum = { version = "0.8", features = ["json"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
