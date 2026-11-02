@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "accounting-api"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "axum",
  "double-entry",
@@ -649,9 +649,9 @@ dependencies = [
 
 [[package]]
 name = "invoice-kit"
-version = "1.2.0"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b1aaac803effd435b56389091ac9e759cf7a0f0f3ff6165473e5ef9b4d27146"
+checksum = "46012b9cdfab3f4c9d50c001ed7a019a83ebbd50a1e671d808a041c3f20a7400"
 dependencies = [
  "double-entry",
  "sha2",
@@ -1484,9 +1484,9 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
 name = "vat-mtd"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66abbfdc439959b8a32d7a8c2713463c499937ea7e7e7f1c5d0a498a5ad57c18"
+checksum = "83e1c3be8f2506cb8cea544557d12864c134ce5b8af1539062854d97fcf726d4"
 dependencies = [
  "serde",
  "serde_json",
@@ -1495,9 +1495,9 @@ dependencies = [
 
 [[package]]
 name = "vat-return"
-version = "0.1.10"
+version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d92b611b0b6199063696bc837073a46081d809eb39102882ad044085ff40ec75"
+checksum = "095970c0f78cdf96371468392a021e99d40f4125aa6311d5b185a1b0b7abf251"
 dependencies = [
  "ap-kit",
  "invoice-kit",

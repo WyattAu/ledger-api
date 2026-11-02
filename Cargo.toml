@@ -1,6 +1,6 @@
 [package]
 name = "accounting-api"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 rust-version = "1.85"
 description = "HTTP API over the WyattAu accounting estate — ledger, reconciliation, reports, tax, all from the released crates"
@@ -13,8 +13,8 @@ categories = ["finance", "api-bindings"]
 double-entry = "=0.1.1"
 ledger-pg = "=0.2.2"
 report-kit = "=0.2.3"
-vat-return = "=0.1.10"
-vat-mtd = "=0.1.6"
+vat-return = "=0.1.11"
+vat-mtd = "=0.1.7"
 recon-kit = "=0.2.0"
 sales-tax = "=0.2.1"
 vat-rules = "=0.1.1"
